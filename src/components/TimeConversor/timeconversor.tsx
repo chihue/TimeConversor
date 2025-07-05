@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { CalendarIcon, Clock, Globe, Sun, Moon, ArrowLeftRight } from "lucide-react"
-import { format } from "date-fns"
+import { format, set } from "date-fns"
 import { es } from "date-fns/locale"
 
 import { cn } from "@/lib/utils"
@@ -36,7 +36,10 @@ const countries = [
 
 export default function TimeConversor() {
     const [date, setDate] = useState<Date>(new Date())
-    const [time, setTime] = useState("12:00")
+    const [time, setTime] = useState(() => {
+        const now = new Date()
+        return `${now.getHours().toString().padStart(2, '0')}:00`
+    }) // Hora actual del sistema con minutos en 00
     const [fromCountry, setFromCountry] = useState("")
     const [toCountry, setToCountry] = useState("")
     const [convertedTime, setConvertedTime] = useState<string>("")
@@ -52,8 +55,35 @@ export default function TimeConversor() {
         }>
     >([])
 
+    const [inputErrors, setInputErrors]  = useState({
+        date: false,
+        fromCountry: false,
+        toCountry: false,
+        time: false,
+    })
+
     const handleConvert = () => {
-        if (!date || !fromCountry || !toCountry || !time) return
+        const errors = {
+            date: false,
+            fromCountry: false,
+            toCountry: false,
+            time: false,
+        }
+        if (!date)errors.date = true
+        if (!fromCountry)errors.fromCountry = true
+        if (!toCountry)errors.toCountry = true
+        if (!time || !/^\d{2}:\d{2}$/.test(time)) {
+            errors.time = true
+        }
+
+        setInputErrors(errors)
+
+        if (errors.date || errors.fromCountry || errors.toCountry || errors.time) {
+            console.info("Error en los campos de entrada:", errors)
+            return
+        }
+
+
 
         const fromTimezone = countries.find((c) => c.name === fromCountry)?.timezone
         const toTimezone = countries.find((c) => c.name === toCountry)?.timezone
@@ -156,13 +186,36 @@ export default function TimeConversor() {
 
         if (!fromTimezone || !toTimezone) return ""
 
+        // Crear una fecha base específica
         const baseDate = new Date(date)
-        baseDate.setHours(12, 0, 0, 0) // Usar mediodía para evitar problemas con cambios de día
+        baseDate.setHours(12, 0, 0, 0)
 
-        const fromTime = new Date(baseDate.toLocaleString("en-US", { timeZone: fromTimezone }))
-        const toTime = new Date(baseDate.toLocaleString("en-US", { timeZone: toTimezone }))
+        // Obtener la hora en cada zona horaria
+        const fromTimeStr = baseDate.toLocaleString("en-CA", { 
+            timeZone: fromTimezone, 
+            hour12: false, 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        })
+        const toTimeStr = baseDate.toLocaleString("en-CA", { 
+            timeZone: toTimezone, 
+            hour12: false, 
+            year: 'numeric', 
+            month: '2-digit', 
+            day: '2-digit', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+        })
 
-        const diffInHours = Math.round((toTime.getTime() - fromTime.getTime()) / (1000 * 60 * 60))
+        // Convertir a objetos Date y calcular diferencia
+        const fromTime = new Date(fromTimeStr)
+        const toTime = new Date(toTimeStr)
+        
+        const diffInMs = toTime.getTime() - fromTime.getTime()
+        const diffInHours = Math.round(diffInMs / (1000 * 60 * 60))
 
         if (diffInHours > 0) {
             return `+${diffInHours}h`
@@ -197,7 +250,7 @@ export default function TimeConversor() {
                             <div className="space-y-2">
                                 <Label htmlFor="from-country">País de origen</Label>
                                 <Select value={fromCountry} onValueChange={setFromCountry}>
-                                    <SelectTrigger>
+                                    <SelectTrigger className={cn(inputErrors.fromCountry && "border-red-500 border-2 focus:border-red-500 focus:ring-red-500")}>
                                         <SelectValue placeholder="Selecciona el país de origen" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -215,7 +268,7 @@ export default function TimeConversor() {
                             <div className="space-y-2">
                                 <Label htmlFor="to-country">País de destino</Label>
                                 <Select value={toCountry} onValueChange={setToCountry}>
-                                    <SelectTrigger>
+                                    <SelectTrigger className={cn(inputErrors.toCountry && "border-red-500 border-2 focus:border-red-500 focus:ring-red-500")}>
                                         <SelectValue placeholder="Selecciona el país de destino" />
                                     </SelectTrigger>
                                     <SelectContent>
@@ -251,21 +304,31 @@ export default function TimeConversor() {
                                     <PopoverTrigger asChild>
                                         <Button
                                             variant={"outline"}
-                                            className={cn("w-full justify-start text-left font-normal", !date && "text-muted-foreground")}
+                                            className={cn(
+                                                "w-full justify-start text-left font-normal", 
+                                                !date && "text-muted-foreground",
+                                                inputErrors.date && "border-red-500 border-2 focus:border-red-500 focus:ring-red-500"
+                                            )}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
                                             {date ? format(date, "PPP", { locale: es }) : <span>Selecciona una fecha</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={date} onSelect={setDate} initialFocus />
+                                        <Calendar mode="single" selected={date} onSelect={(newDate) => newDate && setDate(newDate)} initialFocus />
                                     </PopoverContent>
                                 </Popover>
                             </div>
 
                             <div className="space-y-2">
                                 <Label htmlFor="time">Hora</Label>
-                                <Input id="time" type="time" value={time} onChange={(e) => setTime(e.target.value)} />
+                                <Input 
+                                    id="time" 
+                                    type="time" 
+                                    value={time} 
+                                    onChange={(e) => setTime(e.target.value)} 
+                                    className={cn(inputErrors.time && "border-red-500 border-2 focus:border-red-500 focus:ring-red-500")}
+                                />
                             </div>
                         </div>
 

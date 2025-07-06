@@ -11,7 +11,7 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import getTimezoneInfo from '@abuhasanrumi/timezone-to-country'
+import { getTimezoneInfo } from '@abuhasanrumi/timezone-to-country'
 import { flag, code, name, countries } from 'country-emoji'
 
 

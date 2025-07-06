@@ -11,28 +11,12 @@ import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { timezones } from "@/costants/timezones"
+import TimeZoneSelector from "../TimeZoneSelector"
 
-const countries = [
-    { name: "España", timezone: "Europe/Madrid", flag: "🇪🇸" },
-    { name: "Estados Unidos (Nueva York)", timezone: "America/New_York", flag: "🇺🇸" },
-    { name: "Estados Unidos (Los Ángeles)", timezone: "America/Los_Angeles", flag: "🇺🇸" },
-    { name: "Reino Unido", timezone: "Europe/London", flag: "🇬🇧" },
-    { name: "Francia", timezone: "Europe/Paris", flag: "🇫🇷" },
-    { name: "Alemania", timezone: "Europe/Berlin", flag: "🇩🇪" },
-    { name: "Italia", timezone: "Europe/Rome", flag: "🇮🇹" },
-    { name: "Japón", timezone: "Asia/Tokyo", flag: "🇯🇵" },
-    { name: "China", timezone: "Asia/Shanghai", flag: "🇨🇳" },
-    { name: "Australia (Sídney)", timezone: "Australia/Sydney", flag: "🇦🇺" },
-    { name: "Brasil", timezone: "America/Sao_Paulo", flag: "🇧🇷" },
-    { name: "Argentina", timezone: "America/Argentina/Buenos_Aires", flag: "🇦🇷" },
-    { name: "México", timezone: "America/Mexico_City", flag: "🇲🇽" },
-    { name: "Canadá", timezone: "America/Toronto", flag: "🇨🇦" },
-    { name: "India", timezone: "Asia/Kolkata", flag: "🇮🇳" },
-    { name: "Rusia (Moscú)", timezone: "Europe/Moscow", flag: "🇷🇺" },
-]
+const countries = timezones;
 
 export default function TimeConversor() {
     const [date, setDate] = useState<Date>(new Date())
@@ -55,7 +39,7 @@ export default function TimeConversor() {
         }>
     >([])
 
-    const [inputErrors, setInputErrors]  = useState({
+    const [inputErrors, setInputErrors] = useState({
         date: false,
         fromCountry: false,
         toCountry: false,
@@ -63,15 +47,18 @@ export default function TimeConversor() {
     })
 
     const handleConvert = () => {
+        console.log("Convirtiendo hora de", fromCountry, "a", toCountry, "en la fecha", date, "a las", time)
+        console.log("Convirtiendo hora de", fromCountry, "a", toCountry, "en la fecha", date, "a las", time)
+
         const errors = {
             date: false,
             fromCountry: false,
             toCountry: false,
             time: false,
         }
-        if (!date)errors.date = true
-        if (!fromCountry)errors.fromCountry = true
-        if (!toCountry)errors.toCountry = true
+        if (!date) errors.date = true
+        if (!fromCountry) errors.fromCountry = true
+        if (!toCountry) errors.toCountry = true
         if (!time || !/^\d{2}:\d{2}$/.test(time)) {
             errors.time = true
         }
@@ -83,22 +70,37 @@ export default function TimeConversor() {
             return
         }
 
+        const fromTimezone = fromCountry;
+        const toTimezone = toCountry;
 
-
-        const fromTimezone = countries.find((c) => c.name === fromCountry)?.timezone
-        const toTimezone = countries.find((c) => c.name === toCountry)?.timezone
-
-        if (!fromTimezone || !toTimezone) return
-
-        // Crear fecha con la hora seleccionada
+        // Método correcto: usar la diferencia de offset entre zonas horarias
         const [hours, minutes] = time.split(":").map(Number)
+
+        // Crear fecha base con la hora especificada
         const selectedDateTime = new Date(date)
         selectedDateTime.setHours(hours, minutes, 0, 0)
 
-        // Convertir a la zona horaria de destino
-        const convertedDate = new Date(selectedDateTime.toLocaleString("en-US", { timeZone: fromTimezone }))
-        const targetTime = new Date(convertedDate.getTime()).toLocaleString("es-ES", {
-            timeZone: toTimezone,
+        // Obtener los offsets de timezone usando una fecha de referencia
+        const referenceDate = new Date(selectedDateTime)
+
+        // Obtener offset en minutos para cada zona horaria
+        const getTimezoneOffset = (timezone: string) => {
+            const utc1 = new Date(referenceDate.toLocaleString("en-US", { timeZone: "UTC" }))
+            const utc2 = new Date(referenceDate.toLocaleString("en-US", { timeZone: timezone }))
+            return (utc2.getTime() - utc1.getTime()) / (1000 * 60)
+        }
+
+        const fromOffset = getTimezoneOffset(fromTimezone)
+        const toOffset = getTimezoneOffset(toTimezone)
+
+        // Calcular la diferencia en minutos
+        const diffMinutes = toOffset - fromOffset
+
+        // Aplicar la diferencia a nuestra fecha
+        const convertedDateTime = new Date(selectedDateTime.getTime() + (diffMinutes * 60 * 1000))
+
+        // Formatear el resultado
+        const targetTime = convertedDateTime.toLocaleString("es-ES", {
             year: "numeric",
             month: "long",
             day: "numeric",
@@ -191,29 +193,29 @@ export default function TimeConversor() {
         baseDate.setHours(12, 0, 0, 0)
 
         // Obtener la hora en cada zona horaria
-        const fromTimeStr = baseDate.toLocaleString("en-CA", { 
-            timeZone: fromTimezone, 
-            hour12: false, 
-            year: 'numeric', 
-            month: '2-digit', 
-            day: '2-digit', 
-            hour: '2-digit', 
-            minute: '2-digit' 
+        const fromTimeStr = baseDate.toLocaleString("en-CA", {
+            timeZone: fromTimezone,
+            hour12: false,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
         })
-        const toTimeStr = baseDate.toLocaleString("en-CA", { 
-            timeZone: toTimezone, 
-            hour12: false, 
-            year: 'numeric', 
-            month: '2-digit', 
-            day: '2-digit', 
-            hour: '2-digit', 
-            minute: '2-digit' 
+        const toTimeStr = baseDate.toLocaleString("en-CA", {
+            timeZone: toTimezone,
+            hour12: false,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
         })
 
         // Convertir a objetos Date y calcular diferencia
         const fromTime = new Date(fromTimeStr)
         const toTime = new Date(toTimeStr)
-        
+
         const diffInMs = toTime.getTime() - fromTime.getTime()
         const diffInHours = Math.round(diffInMs / (1000 * 60 * 60))
 
@@ -246,55 +248,28 @@ export default function TimeConversor() {
                         <CardDescription>Selecciona la fecha, hora y países para realizar la conversión</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
+                        <div className="flex items-end gap-2">
+                            <div className="space-y-2 flex-1">
                                 <Label htmlFor="from-country">País de origen</Label>
-                                <Select value={fromCountry} onValueChange={setFromCountry}>
-                                    <SelectTrigger className={cn(inputErrors.fromCountry && "border-red-500 border-2 focus:border-red-500 focus:ring-red-500")}>
-                                        <SelectValue placeholder="Selecciona el país de origen" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {countries.map((country) => (
-                                            <SelectItem key={country.name} value={country.name}>
-                                                <span className="flex items-center gap-2">
-                                                    {country.flag} {country.name}
-                                                </span>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <TimeZoneSelector value={fromCountry} onValueChange={setFromCountry} error={inputErrors.fromCountry} />
                             </div>
 
-                            <div className="space-y-2">
+                            <div className="flex justify-center">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleSwapCountries}
+                                    disabled={!fromCountry || !toCountry}
+                                    className="p-2 h-10 w-10 rounded-full bg-transparent hover:bg-muted"
+                                >
+                                    <ArrowLeftRight className="h-4 w-4" />
+                                </Button>
+                            </div>
+
+                            <div className="space-y-2 flex-1">
                                 <Label htmlFor="to-country">País de destino</Label>
-                                <Select value={toCountry} onValueChange={setToCountry}>
-                                    <SelectTrigger className={cn(inputErrors.toCountry && "border-red-500 border-2 focus:border-red-500 focus:ring-red-500")}>
-                                        <SelectValue placeholder="Selecciona el país de destino" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {countries.map((country) => (
-                                            <SelectItem key={country.name} value={country.name}>
-                                                <span className="flex items-center gap-2">
-                                                    {country.flag} {country.name}
-                                                </span>
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                <TimeZoneSelector value={toCountry} onValueChange={setToCountry} error={inputErrors.toCountry} />
                             </div>
-                        </div>
-
-                        <div className="flex justify-center">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleSwapCountries}
-                                disabled={!fromCountry || !toCountry}
-                                className="flex items-center gap-2 bg-transparent"
-                            >
-                                <ArrowLeftRight className="h-4 w-4" />
-                                Intercambiar países
-                            </Button>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -305,7 +280,7 @@ export default function TimeConversor() {
                                         <Button
                                             variant={"outline"}
                                             className={cn(
-                                                "w-full justify-start text-left font-normal", 
+                                                "w-full justify-start text-left font-normal",
                                                 !date && "text-muted-foreground",
                                                 inputErrors.date && "border-red-500 border-2 focus:border-red-500 focus:ring-red-500"
                                             )}
@@ -315,18 +290,21 @@ export default function TimeConversor() {
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">
-                                        <Calendar mode="single" selected={date} onSelect={(newDate) => newDate && setDate(newDate)} initialFocus />
+                                        <Calendar mode="single"
+                                            selected={date}
+                                            onSelect={(newDate) => newDate && setDate(newDate)}
+                                        />
                                     </PopoverContent>
                                 </Popover>
                             </div>
 
                             <div className="space-y-2">
                                 <Label htmlFor="time">Hora</Label>
-                                <Input 
-                                    id="time" 
-                                    type="time" 
-                                    value={time} 
-                                    onChange={(e) => setTime(e.target.value)} 
+                                <Input
+                                    id="time"
+                                    type="time"
+                                    value={time}
+                                    onChange={(e) => setTime(e.target.value)}
                                     className={cn(inputErrors.time && "border-red-500 border-2 focus:border-red-500 focus:ring-red-500")}
                                 />
                             </div>
@@ -411,7 +389,7 @@ export default function TimeConversor() {
                                         {hourlyConversions.map((conversion, index) => (
                                             <TableRow
                                                 key={index}
-                                                className={conversion.originTime === time ? "bg-primary/10" : ""}
+                                                className={conversion.originTime.substring(0, 2) === time.substring(0, 2) ? "bg-primary/10" : ""}
                                             >
                                                 <TableCell className="text-center py-1">
                                                     <div className="flex flex-col items-center space-y-1">
@@ -451,9 +429,6 @@ export default function TimeConversor() {
                                         ))}
                                     </TableBody>
                                 </Table>
-                            </div>
-                            <div className="mt-4 text-sm text-muted-foreground text-center">
-                                La fila resaltada corresponde a la hora seleccionada ({time})
                             </div>
                         </CardContent>
                     </Card>

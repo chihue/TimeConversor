@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { CalendarIcon, Clock, Globe, Sun, Moon, ArrowLeftRight } from "lucide-react"
 import { format, set } from "date-fns"
-import { es } from "date-fns/locale"
+import { es, fr } from "date-fns/locale"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { timezones } from "@/costants/timezones"
 import TimeZoneSelector from "../TimeZoneSelector"
+import { getContinentsWithCountries } from "../TimeZoneInfo"
 
 const countries = timezones;
 
@@ -38,6 +39,7 @@ export default function TimeConversor() {
             targetIsDay: boolean
         }>
     >([])
+    const continents = getContinentsWithCountries();
 
     const [inputErrors, setInputErrors] = useState({
         date: false,
@@ -48,7 +50,6 @@ export default function TimeConversor() {
 
     const handleConvert = () => {
         console.log("Convirtiendo hora de", fromCountry, "a", toCountry, "en la fecha", date, "a las", time)
-        console.log("Convirtiendo hora de", fromCountry, "a", toCountry, "en la fecha", date, "a las", time)
 
         const errors = {
             date: false,
@@ -57,21 +58,31 @@ export default function TimeConversor() {
             time: false,
         }
         if (!date) errors.date = true
-        if (!fromCountry) errors.fromCountry = true
-        if (!toCountry) errors.toCountry = true
+        if (!fromCountry || !fromCountry.includes("=")) errors.fromCountry = true;
+        if (!toCountry || !toCountry.includes("=")) errors.toCountry = true;
         if (!time || !/^\d{2}:\d{2}$/.test(time)) {
             errors.time = true
         }
 
-        setInputErrors(errors)
+        const fromTimezone = fromCountry.split("=")[1]; // Extraer la zona horaria del país de origen
+        const toTimezone = toCountry.split("=")[1]; // Extraer la zona horaria del país de destino
+
+
+        if (!fromTimezone || !toTimezone || fromTimezone === toTimezone) {
+            console.info("Error: Las zonas horarias de origen y destino no son válidas o son iguales")
+            errors.fromCountry = true
+            errors.toCountry = true
+        }
 
         if (errors.date || errors.fromCountry || errors.toCountry || errors.time) {
             console.info("Error en los campos de entrada:", errors)
             return
         }
 
-        const fromTimezone = fromCountry;
-        const toTimezone = toCountry;
+        setInputErrors(errors)
+
+
+        // console.log("Zonas horarias:", fromTimezone, toTimezone)
 
         // Método correcto: usar la diferencia de offset entre zonas horarias
         const [hours, minutes] = time.split(":").map(Number)
@@ -89,6 +100,8 @@ export default function TimeConversor() {
             const utc2 = new Date(referenceDate.toLocaleString("en-US", { timeZone: timezone }))
             return (utc2.getTime() - utc1.getTime()) / (1000 * 60)
         }
+
+        console.log("timezones:", Intl.supportedValuesOf("timeZone"))
 
         const fromOffset = getTimezoneOffset(fromTimezone)
         const toOffset = getTimezoneOffset(toTimezone)
@@ -251,7 +264,7 @@ export default function TimeConversor() {
                         <div className="flex items-end gap-2">
                             <div className="space-y-2 flex-1">
                                 <Label htmlFor="from-country">País de origen</Label>
-                                <TimeZoneSelector value={fromCountry} onValueChange={setFromCountry} error={inputErrors.fromCountry} />
+                                <TimeZoneSelector key={'from'} value={fromCountry} onValueChange={setFromCountry} error={inputErrors.fromCountry} continents={continents} />
                             </div>
 
                             <div className="flex justify-center">
@@ -266,9 +279,11 @@ export default function TimeConversor() {
                                 </Button>
                             </div>
 
-                            <div className="space-y-2 flex-1">
+                            <div className="space-y-2 flex-1 max-w-full">
                                 <Label htmlFor="to-country">País de destino</Label>
-                                <TimeZoneSelector value={toCountry} onValueChange={setToCountry} error={inputErrors.toCountry} />
+                                <TimeZoneSelector key={'dest'} value={toCountry} onValueChange={(elem) => {
+                                    setToCountry(elem)
+                                }} error={inputErrors.toCountry} continents={continents} />
                             </div>
                         </div>
 
@@ -328,7 +343,7 @@ export default function TimeConversor() {
                                     <div className="text-center">
                                         <div className="text-sm text-muted-foreground mb-1">Desde</div>
                                         <div className="font-semibold">
-                                            {countries.find((c) => c.name === fromCountry)?.flag} {fromCountry}
+                                            {countries.find((c) => c.name === fromCountry)?.flag} {fromCountry.replaceAll("_", " ").replaceAll("=", " - ")}
                                         </div>
                                         <div className="text-sm">
                                             {date && format(date, "PPP", { locale: es })} - {time}
@@ -345,7 +360,7 @@ export default function TimeConversor() {
                                     <div className="text-center">
                                         <div className="text-sm text-muted-foreground mb-1">Hacia</div>
                                         <div className="font-semibold">
-                                            {countries.find((c) => c.name === toCountry)?.flag} {toCountry}
+                                            {countries.find((c) => c.name === toCountry)?.flag} {toCountry.replaceAll("_", " ").replaceAll("=", " - ")}
                                         </div>
                                         <div className="text-lg font-bold text-primary">{convertedTime}</div>
                                     </div>
